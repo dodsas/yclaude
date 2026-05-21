@@ -89,8 +89,8 @@ Jenkinsfile의 `SSH_CRED = 'ysadmin-deploy-ssh'` 로 설정되어 있어, **ysad
   - `DEPLOY_HOST`: Podman 호스트 명/IP
   - `DEPLOY_USER`: `dodsas` (기본)
   - `REMOTE_DIR`: `/home/dodsas/work/ysclaude` (기본)
-  - `HOST_PORT`: `9091`
   - `DEPLOY_BRANCH`: `main`
+  - (`HOST_PORT` 는 Jenkinsfile `environment` 에 `9091` 로 고정 — 파라미터 노출 안 함)
 
 ### 1-6. Git 저장소 Webhook
 

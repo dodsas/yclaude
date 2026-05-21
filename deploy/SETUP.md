@@ -231,10 +231,11 @@ GitHub 저장소 → Settings → Webhooks → 등록한 webhook 클릭 → **Re
 | DEPLOY_HOST | Podman 호스트의 실제 IP 또는 호스트명 ★ |
 | DEPLOY_USER | `dodsas` |
 | REMOTE_DIR | `/home/dodsas/work/ysclaude` |
-| HOST_PORT | `9091` |
 | DEPLOY_BRANCH | `main` |
 
 ★ **DEPLOY_HOST만** 환경에 맞게 입력. 나머지는 기본값 그대로 두면 됩니다.
+
+> `HOST_PORT` 는 Jenkinsfile `environment` 에 `9091` 로 고정되어 있어 파라미터에 노출되지 않습니다. 변경이 필요하면 Jenkinsfile 의 `HOST_PORT = '9091'` 한 줄을 수정 후 커밋하세요.
 
 ### 8-4. 빌드 실행 및 진행 상황 확인
 

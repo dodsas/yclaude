@@ -11,7 +11,6 @@ pipeline {
     string(name: 'DEPLOY_HOST', defaultValue: 'dodsas.iptime.org', description: '배포 대상 서버 (호스트명 또는 IP)')
     string(name: 'DEPLOY_USER', defaultValue: 'dodsas', description: 'SSH 사용자')
     string(name: 'REMOTE_DIR', defaultValue: '/home/dodsas/work/ysclaude', description: '원격 작업 디렉토리')
-    string(name: 'HOST_PORT', defaultValue: '9091', description: '호스트 노출 포트')
     string(name: 'DEPLOY_BRANCH', defaultValue: 'main', description: '자동 배포 대상 브랜치')
   }
 
@@ -19,6 +18,10 @@ pipeline {
     APP_NAME = 'ysclaude'
     SSH_CRED = 'ysadmin-deploy-ssh'
     SSH_PORT = '22311'
+    // HOST_PORT 는 운영 표준값으로 코드에 고정. Jenkins 파라미터 캐시 문제 회피.
+    // 임시로 다른 포트로 띄울 일이 생기면 이 값만 바꾸고 커밋하거나, deploy.sh 를
+    // 호스트에서 HOST_PORT=xxxx ./deploy.sh 직접 실행.
+    HOST_PORT = '9091'
   }
 
   triggers {
