@@ -22,10 +22,12 @@ services:
     volumes:
       - ysclaude-data:/app/data:Z
       - ./logs:/app/logs:Z
-      # Claude CLI 인증 정보 — 호스트의 ~/.claude 를 컨테이너에 read-only 로 노출.
+      # Claude CLI 인증 정보 — 호스트의 ~/.claude 를 컨테이너에 노출.
+      # 쓰기 가능해야 함: OAuth access token 만료 시 CLI 가 .credentials.json 을
+      # refresh 결과로 다시 써야 하므로, :ro 로 두면 토큰 만료 후 401 로 죽음.
       # CLAUDE_HOST_DIR 가 비어 있으면 ./secrets/claude 가 마운트됨 (placeholder).
       # 디렉터리가 비어 있으면 컨테이너는 기동하지만 /chat 호출 시 인증 오류 발생.
-      - ${CLAUDE_HOST_DIR:-./secrets/claude}:/home/app/.claude:ro
+      - ${CLAUDE_HOST_DIR:-./secrets/claude}:/home/app/.claude
     env_file:
       - .env
     environment:
