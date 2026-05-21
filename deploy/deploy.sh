@@ -40,16 +40,21 @@ else
   log "  (c) rsync -a ~/.claude/ ${APP_DIR}/secrets/claude/"
 fi
 
-# .env 가 없으면 .env.example 을 복사 (서버 기동에 필수)
+# 비밀값 파일 (.env) 은 호스트 디스크에서 관리. git archive 가 .env 를 포함하지 않으므로
+# tar 전개시에도 보존됨 → 서버에서 한 번 작성해 두면 이후 배포는 손대지 않는다.
+# 최초 배포 시에만 server/.env.example 을 부트스트랩 템플릿으로 복사한다.
 if [ ! -f "$APP_DIR/.env" ]; then
   if [ -f "$APP_DIR/server/.env.example" ]; then
-    cp "$APP_DIR/server/.env.example" "$APP_DIR/.env"
-    log ".env 가 없어 server/.env.example 을 복사함 — 운영용 비밀값으로 반드시 교체할 것"
+    install -m 600 "$APP_DIR/server/.env.example" "$APP_DIR/.env"
+    log ".env 부트스트랩: server/.env.example 복사 — 실 운영값으로 ${APP_DIR}/.env 직접 편집 필요"
   else
-    log ".env 도, server/.env.example 도 없음. 비밀값 설정 필요."
+    log ".env 도, server/.env.example 도 없음. ${APP_DIR}/.env 를 작성하세요."
     exit 1
   fi
+else
+  log ".env 가 호스트에 존재 — 보존 (수정은 ${APP_DIR}/.env 직접 편집)"
 fi
+chmod 600 "$APP_DIR/.env" 2>/dev/null || true
 
 if ! command -v podman-compose >/dev/null 2>&1; then
   log "podman-compose 명령을 찾을 수 없습니다."
