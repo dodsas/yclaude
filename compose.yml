@@ -18,7 +18,7 @@ services:
     # 매핑되도록 함. 안 그러면 마운트된 ~/.claude(호스트 소유) 권한 부족으로 읽지 못함.
     userns_mode: "keep-id"
     ports:
-      - "${HOST_PORT:-9090}:9090"
+      - "${HOST_PORT:-9091}:9091"
     volumes:
       - ysclaude-data:/app/data:Z
       - ./logs:/app/logs:Z
@@ -30,11 +30,11 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      PORT: 9090
+      PORT: 9091
       IMAGE_TAG: ${IMAGE_TAG:-latest}
       PYTHONUNBUFFERED: "1"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:9090/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:9091/health"]
       interval: 30s
       timeout: 5s
       retries: 3

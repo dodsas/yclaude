@@ -11,7 +11,7 @@ pipeline {
     string(name: 'DEPLOY_HOST', defaultValue: 'dodsas.iptime.org', description: '배포 대상 서버 (호스트명 또는 IP)')
     string(name: 'DEPLOY_USER', defaultValue: 'dodsas', description: 'SSH 사용자')
     string(name: 'REMOTE_DIR', defaultValue: '/home/dodsas/work/ysclaude', description: '원격 작업 디렉토리')
-    string(name: 'HOST_PORT', defaultValue: '9090', description: '호스트 노출 포트')
+    string(name: 'HOST_PORT', defaultValue: '9091', description: '호스트 노출 포트')
     string(name: 'DEPLOY_BRANCH', defaultValue: 'main', description: '자동 배포 대상 브랜치')
   }
 

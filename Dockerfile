@@ -23,12 +23,12 @@ RUN mkdir -p /app/data /app/logs /app/secrets \
 USER app
 
 ENV HOST=0.0.0.0
-ENV PORT=9090
+ENV PORT=9091
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 9090
+EXPOSE 9091
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -fsS http://localhost:9090/health >/dev/null 2>&1 || exit 1
+  CMD curl -fsS http://localhost:9091/health >/dev/null 2>&1 || exit 1
 
 CMD ["python", "main.py"]

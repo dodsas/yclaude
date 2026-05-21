@@ -5,7 +5,7 @@
 - 대상 사용자: `dodsas`
 - 원격 작업 경로: `/home/dodsas/work/ysclaude`
 - 트리거: `main` 브랜치 push 시 자동 배포
-- 노출 포트: `9090` (FastAPI)
+- 노출 포트: `9091` (FastAPI)
 - 헬스체크: `GET /health`
 
 ---
@@ -45,8 +45,8 @@ podman info | head -20        # rootless 확인
 podman-compose --version || sudo dnf install -y podman-compose
 # 또는 (dnf 패키지가 없는 경우): pip install --user podman-compose
 
-# 9090 포트 방화벽 (firewalld 환경)
-sudo firewall-cmd --permanent --add-port=9090/tcp
+# 9091 포트 방화벽 (firewalld 환경)
+sudo firewall-cmd --permanent --add-port=9091/tcp
 sudo firewall-cmd --reload
 ```
 
@@ -126,7 +126,7 @@ DEFAULT_MODEL=opus
 CLAUDE_CLI_PATH=claude
 CLAUDE_TIMEOUT=300
 HOST=0.0.0.0
-PORT=9090
+PORT=9091
 EOF
 chmod 600 /home/dodsas/work/ysclaude/.env
 
@@ -231,7 +231,7 @@ GitHub 저장소 → Settings → Webhooks → 등록한 webhook 클릭 → **Re
 | DEPLOY_HOST | Podman 호스트의 실제 IP 또는 호스트명 ★ |
 | DEPLOY_USER | `dodsas` |
 | REMOTE_DIR | `/home/dodsas/work/ysclaude` |
-| HOST_PORT | `9090` |
+| HOST_PORT | `9091` |
 | DEPLOY_BRANCH | `main` |
 
 ★ **DEPLOY_HOST만** 환경에 맞게 입력. 나머지는 기본값 그대로 두면 됩니다.
@@ -252,7 +252,7 @@ GitHub 저장소 → Settings → Webhooks → 등록한 webhook 클릭 → **Re
 
 성공 시 마지막 줄:
 ```
-✓ 배포 성공: http://<DEPLOY_HOST>:9090  (image: localhost/ysclaude:b1-<sha>)
+✓ 배포 성공: http://<DEPLOY_HOST>:9091  (image: localhost/ysclaude:b1-<sha>)
 ```
 
 ---
@@ -264,18 +264,18 @@ GitHub 저장소 → Settings → Webhooks → 등록한 webhook 클릭 → **Re
 podman ps --filter name=ysclaude
 # STATUS: Up X seconds (healthy)
 
-curl -s http://127.0.0.1:9090/health
+curl -s http://127.0.0.1:9091/health
 # {"status":"ok"}
 
 # 토큰 발급 (4단계 .env의 API_KEY 사용)
 API_KEY=$(grep '^API_KEY=' /home/dodsas/work/ysclaude/.env | cut -d= -f2)
-TOKEN=$(curl -s -X POST http://127.0.0.1:9090/auth/token \
+TOKEN=$(curl -s -X POST http://127.0.0.1:9091/auth/token \
   -H "Content-Type: application/json" \
   -d "{\"api_key\":\"${API_KEY}\",\"client_id\":\"smoke\"}" \
   | python3 -c "import json,sys;print(json.load(sys.stdin)['access_token'])")
 
 # /chat 호출
-curl -s -X POST http://127.0.0.1:9090/chat \
+curl -s -X POST http://127.0.0.1:9091/chat \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"question":"ping"}'
@@ -283,7 +283,7 @@ curl -s -X POST http://127.0.0.1:9090/chat \
 
 **브라우저**:
 ```
-http://<podman-host>:9090/docs
+http://<podman-host>:9091/docs
 ```
 Swagger UI 표시 확인.
 
@@ -357,7 +357,7 @@ systemctl --user enable --now container-ysclaude.service
 |---|---|
 | 5단계 SSH 연결 실패 (Permission denied) | SELinux가 authorized_keys 차단 → `restorecon -Rv ~/.ssh` |
 | Deploy stage에서 podman 명령 실패 | linger 미적용 → 2단계 `loginctl enable-linger dodsas` 재확인 |
-| 컨테이너는 떴는데 외부 접속 불가 | firewalld / 클라우드 보안그룹 / 사내 방화벽 (9090) 확인 |
+| 컨테이너는 떴는데 외부 접속 불가 | firewalld / 클라우드 보안그룹 / 사내 방화벽 (9091) 확인 |
 | `podman build`에서 pip 네트워크 오류 | 사내 미러 설정 → Dockerfile에 `RUN pip config set global.index-url ...` 추가 |
 | Jenkins가 webhook은 받는데 빌드 안 시작 | 6단계 Build Triggers 체크 빠뜨림 / GitHub plugin 미설치 |
 | Smoke Test에서 502/Connection refused | 컨테이너 부팅 시간 부족 → `deploy.sh`의 헬스체크 대기 30초로는 부족할 가능성 (이미지 첫 빌드 시) |

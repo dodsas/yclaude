@@ -5,7 +5,7 @@
 - 대상 사용자: `dodsas` (기존 계정)
 - 원격 작업 디렉토리: `/home/dodsas/work/ysclaude`
 - 트리거: `main` 브랜치 push (다른 브랜치는 건너뜀)
-- 노출 포트: `9090` (FastAPI)
+- 노출 포트: `9091` (FastAPI)
 - 헬스체크 경로: `/health`
 
 ## 1. 사전 준비 (1회)
@@ -57,7 +57,7 @@ DEFAULT_MODEL=opus
 CLAUDE_CLI_PATH=claude
 CLAUDE_TIMEOUT=300
 HOST=0.0.0.0
-PORT=9090
+PORT=9091
 EOF
 chmod 600 /home/dodsas/work/ysclaude/.env
 ```
@@ -89,7 +89,7 @@ Jenkinsfile의 `SSH_CRED = 'ysadmin-deploy-ssh'` 로 설정되어 있어, **ysad
   - `DEPLOY_HOST`: Podman 호스트 명/IP
   - `DEPLOY_USER`: `dodsas` (기본)
   - `REMOTE_DIR`: `/home/dodsas/work/ysclaude` (기본)
-  - `HOST_PORT`: `9090`
+  - `HOST_PORT`: `9091`
   - `DEPLOY_BRANCH`: `main`
 
 ### 1-6. Git 저장소 Webhook

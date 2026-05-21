@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="${APP_NAME:-ysclaude}"
 APP_DIR="${APP_DIR:-/home/dodsas/work/${APP_NAME}}"
-HOST_PORT="${HOST_PORT:-9090}"
+HOST_PORT="${HOST_PORT:-9091}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMAGE_RETAIN="${IMAGE_RETAIN:-3}"
