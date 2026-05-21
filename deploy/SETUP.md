@@ -138,91 +138,26 @@ grep '^API_KEY=' /home/dodsas/work/ysclaude/.env
 
 ---
 
-## ☐ 5단계 — Jenkins → dodsas SSH 키 설정
+## ☐ 5단계 — SSH 자격증명 (기존 `ysadmin-deploy-ssh` 재사용)
 
-> 왜 로컬에서 만드는가: Jenkins가 컨테이너로 떠있어 `podman exec`로 들어가서 키를 만드는 게 번거롭고, 컨테이너 재생성 시 키 분실 위험도 있음. 키는 어디서 만들든 결과가 동일하므로 **로컬 Mac에서 생성 → Jenkins Credentials UI에 붙여넣기**가 가장 실용적.
+`Jenkinsfile` 의 `SSH_CRED = 'ysadmin-deploy-ssh'` 로 설정되어, **ysadmin 배포에 쓰는 SSH credential을 그대로 재사용**합니다. 별도 키 생성·등록 작업이 필요하지 않습니다.
 
-### 5-1. 로컬 Mac에서 SSH 키 페어 생성
+확인만 하세요:
 
+### 5-1. Jenkins Credentials 에 `ysadmin-deploy-ssh` 가 있나
+**Manage Jenkins → Credentials → System → Global** 목록에서 ID 컬럼에 `ysadmin-deploy-ssh` 존재 여부 확인.
+- 있으면 ✅ 5단계 끝
+- 없으면 ysadmin 쪽 SETUP을 먼저 따라가 등록 후 돌아오세요.
+
+### 5-2. 그 키로 dodsas 에 접속 가능한가 (옵션, 의심될 때만)
+ysadmin 배포가 정상 동작 중이면 이미 충족됩니다. 의심스러우면 Jenkins 머신에서:
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/ysclaude_deploy -N '' -C "jenkins->dodsas ysclaude deploy"
+# Jenkins 서버 셸 안에서 (예: docker exec / 노드 콘솔)
+ssh -p 22311 -i <credential-as-file> dodsas@<podman-host> "podman --version"
 ```
 
-산출물:
-- 공개키: `~/.ssh/ysclaude_deploy.pub`
-- 개인키: `~/.ssh/ysclaude_deploy`
-
-### 5-2. 공개키를 dodsas의 `authorized_keys`에 등록
-
-공개키 내용 확인:
-```bash
-cat ~/.ssh/ysclaude_deploy.pub
-# ssh-ed25519 AAAA... jenkins->dodsas ysclaude deploy
-```
-
-이 한 줄을 dodsas의 `~/.ssh/authorized_keys`에 추가. 세 가지 방법 중 편한 것:
-
-**(a) Cockpit Web Terminal 사용** (가장 간단)
-1. `https://<podman-host>:9090` 접속 → dodsas 로그인
-2. 좌측 메뉴 **Terminal** 클릭
-3. 다음 실행:
-   ```bash
-   mkdir -p ~/.ssh && chmod 700 ~/.ssh
-   echo "<위에서 복사한 공개키 한 줄>" >> ~/.ssh/authorized_keys
-   chmod 600 ~/.ssh/authorized_keys
-   # SELinux enforce 환경
-   restorecon -Rv ~/.ssh 2>/dev/null || true
-   ```
-
-**(b) 기존 SSH 접속 가능하면 ssh-copy-id 사용**
-```bash
-# 로컬 Mac에서, dodsas에 패스워드 로그인이 가능하다면
-ssh-copy-id -i ~/.ssh/ysclaude_deploy.pub dodsas@<podman-host>
-```
-
-**(c) Cockpit 파일 매니저 사용**
-- Cockpit → **Files** → `/home/dodsas/.ssh/authorized_keys` 편집 → 공개키 한 줄 붙여넣고 저장
-
-### 5-3. 개인키를 Jenkins Credentials에 등록
-
-개인키 내용 확인 (Mac 로컬에서):
-```bash
-cat ~/.ssh/ysclaude_deploy
-# -----BEGIN OPENSSH PRIVATE KEY-----
-# ...
-# -----END OPENSSH PRIVATE KEY-----
-```
-
-Jenkins UI → **Manage Jenkins → Credentials → System → Global → Add Credentials**:
-
-| 필드 | 값 |
-|---|---|
-| Kind | SSH Username with private key |
-| Scope | Global |
-| ID | `ysclaude-deploy-ssh` (정확히 이대로) |
-| Username | `dodsas` |
-| Private Key | **Enter directly** 라디오 선택 → 위 개인키 전체 붙여넣기 (`-----BEGIN...END-----` 포함) |
-| Passphrase | 비워둠 (5-1에서 `-N ''`로 만들었음) |
-
-### 5-4. 로컬 Mac에서 연결 테스트 (선택)
-
-Jenkins로 등록은 끝났지만, 키 자체가 동작하는지 한 번 확인하고 싶다면:
-```bash
-ssh -i ~/.ssh/ysclaude_deploy dodsas@<podman-host> "podman --version"
-# → "podman version 4.9.4-rhel"
-```
-
-성공하면 Jenkins도 같은 키로 동일하게 동작합니다. 실패하면 5-2의 `authorized_keys` 등록을 다시 확인.
-
-### 5-5. (보안 강화) 로컬 Mac의 개인키 정리
-
-Jenkins Credentials에 등록되면 로컬 Mac의 개인키 파일은 더 이상 필요 없습니다. 보안상 삭제 권장:
-```bash
-shred -u ~/.ssh/ysclaude_deploy 2>/dev/null || rm -P ~/.ssh/ysclaude_deploy
-rm ~/.ssh/ysclaude_deploy.pub
-```
-
-(주의: 분실 시 재발급 절차를 거쳐야 하므로, 운영 일정상 여유 있을 때 정리)
+### 분리하고 싶다면
+ysclaude 전용 credential 로 따로 두려면 `Jenkinsfile` 의 `SSH_CRED` 값을 새 ID 로 바꾸고, 표준 절차(키 생성 → authorized_keys 등록 → Credentials 등록)를 따르면 됩니다.
 
 ---
 

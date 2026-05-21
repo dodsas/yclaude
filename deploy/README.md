@@ -64,22 +64,15 @@ chmod 600 /home/dodsas/work/ysclaude/.env
 
 > 랜덤 생성 예시: `openssl rand -hex 32`
 
-### 1-4. SSH 키 등록
+### 1-4. SSH 키 등록 — 기존 `ysadmin-deploy-ssh` 재사용
 
-Jenkins → dodsas 단방향 SSH 키.
+Jenkinsfile의 `SSH_CRED = 'ysadmin-deploy-ssh'` 로 설정되어 있어, **ysadmin 배포에 사용 중인 SSH credential과 authorized_keys 를 그대로 공유**합니다. 별도 키 생성/등록 작업이 필요하지 않습니다.
 
-```bash
-# Jenkins 서버 (jenkins 사용자)에서
-ssh-keygen -t ed25519 -f ~/.ssh/ysclaude_deploy -N ''
+전제:
+- Jenkins Credentials에 ID `ysadmin-deploy-ssh` 가 이미 등록되어 있음
+- 그 키의 공개키가 dodsas `~/.ssh/authorized_keys` 에 이미 들어있음 (ysadmin 배포 중이면 자동 충족)
 
-# 공개키를 dodsas에 등록
-ssh-copy-id -i ~/.ssh/ysclaude_deploy.pub dodsas@<podman-host>
-```
-
-Jenkins **Manage Jenkins → Credentials**에 Private Key (`~/.ssh/ysclaude_deploy`)를 등록:
-- Kind: **SSH Username with private key**
-- ID: **`ysclaude-deploy-ssh`**
-- Username: **`dodsas`**
+별도 키로 분리하고 싶다면 Jenkinsfile의 `SSH_CRED` 값을 새 ID로 바꾸고 표준 절차로 키를 만드세요.
 
 ### 1-5. Jenkins Pipeline Item 생성
 

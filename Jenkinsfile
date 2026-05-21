@@ -17,7 +17,7 @@ pipeline {
 
   environment {
     APP_NAME = 'ysclaude'
-    SSH_CRED = 'ysclaude-deploy-ssh'
+    SSH_CRED = 'ysadmin-deploy-ssh'
     SSH_PORT = '22311'
   }
 
