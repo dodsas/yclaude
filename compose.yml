@@ -1,5 +1,11 @@
 name: ysclaude
 
+# podman-compose가 기본적으로 모든 서비스를 하나의 pod 안에 넣는데, pod 와
+# userns_mode 가 동시에 설정되면 "--userns and --pod cannot be set together"
+# 에러가 발생함. ysclaude 는 단일 컨테이너이므로 pod 가 필요 없음 → 비활성화.
+x-podman:
+  in_pod: false
+
 services:
   ysclaude:
     build:
