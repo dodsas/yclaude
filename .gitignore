@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+server/.venv/
+server/__pycache__/
+
+data/
+logs/
+tmp/
+secrets/
+
+.env
+server/.env
+
+.DS_Store
+.claude/worktrees/

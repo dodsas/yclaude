@@ -1,0 +1,38 @@
+name: ysclaude
+
+services:
+  ysclaude:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localhost/ysclaude:${IMAGE_TAG:-latest}
+    container_name: ysclaude
+    restart: always
+    # rootless Podman 환경: 컨테이너 안 uid=1000(app)이 호스트의 podman 실행 사용자(dodsas) uid로
+    # 매핑되도록 함. 안 그러면 마운트된 ~/.claude(호스트 소유) 권한 부족으로 읽지 못함.
+    userns_mode: "keep-id"
+    ports:
+      - "${HOST_PORT:-9090}:9090"
+    volumes:
+      - ysclaude-data:/app/data:Z
+      - ./logs:/app/logs:Z
+      # Claude CLI 인증 정보 — 호스트의 ~/.claude 를 컨테이너에 read-only 로 노출.
+      # CLAUDE_HOST_DIR 가 비어 있으면 ./secrets/claude 가 마운트됨 (placeholder).
+      # 디렉터리가 비어 있으면 컨테이너는 기동하지만 /chat 호출 시 인증 오류 발생.
+      - ${CLAUDE_HOST_DIR:-./secrets/claude}:/home/app/.claude:ro
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 9090
+      IMAGE_TAG: ${IMAGE_TAG:-latest}
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  ysclaude-data:

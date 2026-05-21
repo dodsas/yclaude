@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+.DS_Store
+*.log
+__pycache__
+*.pyc
+server/.venv
+server/__pycache__
+server/.env
+Jenkinsfile
+deploy
+.dockerignore
+.gitignore
+README.md
