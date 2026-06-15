@@ -168,7 +168,11 @@ grep '^API_KEY=' /home/dodsas/work/ysclaude/.env
 > 원격 `deploy.sh` 로 전달하고, `deploy.sh` 가 `.env` 에 upsert 합니다. 콘솔 로그에서 비밀번호는 마스킹됩니다.
 >
 > id/pw 를 바꾸려면 이 credential 만 수정 후 재배포하면 됩니다. (또는 호스트 `.env` 직접 수정)
-> credential 을 만들지 않고 Jenkins 배포를 돌리면 바인딩 단계에서 실패하므로, **반드시 먼저 등록**하세요.
+>
+> **이 credential 은 선택사항입니다.** Jenkinsfile 의 Deploy stage 는 credential 이 없으면
+> 주입을 건너뛰고 호스트 `.env` 값(최초 배포 시 `.env.example` 의 `ADMIN_*` 부트스트랩값)을 그대로 씁니다.
+> 즉 등록 안 해도 배포는 성공하며, 대시보드 자격을 Jenkins 로 중앙관리하고 싶을 때만 등록하면 됩니다.
+> (등록 안 하면 첫 배포 기본 비밀번호는 `change-me-admin` 이므로, 운영에선 등록하거나 호스트 `.env` 를 직접 강화하세요.)
 
 ---
 

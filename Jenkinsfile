@@ -86,23 +86,38 @@ pipeline {
 
         stage('Deploy') {
           steps {
-            withCredentials([
-              sshUserPrivateKey(credentialsId: env.SSH_CRED, keyFileVariable: 'SSH_KEY'),
-              usernamePassword(credentialsId: env.ADMIN_CRED, usernameVariable: 'ADMIN_USER', passwordVariable: 'ADMIN_PASSWORD')
-            ]) {
-              sh '''
-                set -e
-                SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null"
-                ssh -p ${SSH_PORT} ${SSH_OPTS} ${DEPLOY_USER}@${DEPLOY_HOST} "
-                  export APP_NAME=${APP_NAME}
-                  export APP_DIR=${REMOTE_DIR}
-                  export HOST_PORT=${HOST_PORT}
-                  export IMAGE_TAG=${IMAGE_TAG}
-                  export ADMIN_USER='${ADMIN_USER}'
-                  export ADMIN_PASSWORD='${ADMIN_PASSWORD}'
-                  bash ${REMOTE_DIR}/deploy/deploy.sh
-                "
-              '''
+            script {
+              // 관리자 대시보드 자격증명(ysclaude-admin)은 "선택사항".
+              // 등록돼 있으면 주입하고, 없으면 배포를 막지 않고 호스트 .env 값을 쓴다.
+              def adminBinding = []
+              try {
+                withCredentials([usernamePassword(credentialsId: env.ADMIN_CRED, usernameVariable: 'U', passwordVariable: 'P')]) {}
+                adminBinding = [usernamePassword(credentialsId: env.ADMIN_CRED, usernameVariable: 'ADMIN_USER', passwordVariable: 'ADMIN_PASSWORD')]
+                echo "관리자 credential '${env.ADMIN_CRED}' 사용 → .env 에 주입"
+              } catch (ignored) {
+                echo "⚠ 관리자 credential '${env.ADMIN_CRED}' 미등록 → 주입 생략, 호스트 .env 값 사용"
+                echo "  (대시보드 자격을 Jenkins 로 관리하려면 'Username with password' credential 을 ID '${env.ADMIN_CRED}' 로 등록)"
+              }
+
+              withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CRED, keyFileVariable: 'SSH_KEY')] + adminBinding) {
+                sh '''
+                  set -e
+                  SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null"
+                  # 관리자 자격이 바인딩됐을 때만 원격으로 전달 (없으면 deploy.sh 가 .env 보존)
+                  ADMIN_EXPORTS=""
+                  if [ -n "${ADMIN_USER:-}" ]; then
+                    ADMIN_EXPORTS="export ADMIN_USER='${ADMIN_USER}'; export ADMIN_PASSWORD='${ADMIN_PASSWORD}';"
+                  fi
+                  ssh -p ${SSH_PORT} ${SSH_OPTS} ${DEPLOY_USER}@${DEPLOY_HOST} "
+                    export APP_NAME=${APP_NAME}
+                    export APP_DIR=${REMOTE_DIR}
+                    export HOST_PORT=${HOST_PORT}
+                    export IMAGE_TAG=${IMAGE_TAG}
+                    ${ADMIN_EXPORTS}
+                    bash ${REMOTE_DIR}/deploy/deploy.sh
+                  "
+                '''
+              }
             }
           }
         }
