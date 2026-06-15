@@ -64,6 +64,10 @@ OpenAPI JSON: <http://localhost:9091/openapi.json>
 | `DEFAULT_MODEL` | `opus` | `/chat`에서 `model` 미지정 시 사용할 Claude 모델 |
 | `CLAUDE_CLI_PATH` | `claude` | Claude CLI 실행 파일 경로. 절대경로 가능 |
 | `CLAUDE_TIMEOUT` | `300` | Claude CLI 한 번 호출의 최대 대기 시간(초) |
+| `ADMIN_USER` | `admin` | 관리 대시보드 로그인 아이디 |
+| `ADMIN_PASSWORD` | (빈 값) | 관리 대시보드 로그인 비밀번호. **비어 있으면 로그인 불가**. 운영 시 Jenkins Credentials 로 주입 |
+| `ADMIN_SESSION_MINUTES` | `480` | 관리 대시보드 세션(쿠키) 유효 시간(분) |
+| `DATA_DIR` | `data` | 요청 수 집계 SQLite(`app.db`) 저장 디렉터리. 컨테이너에선 `/app/data` 볼륨 |
 | `HOST` | `0.0.0.0` | 바인딩 주소 |
 | `PORT` | `9091` | 바인딩 포트 |
 
@@ -178,6 +182,25 @@ claude -p --model <model> --output-format json <question>
 ```
 CLI가 stdout JSON으로 돌려준 `result` 문자열이 그대로 `answer`가 된다.
 
+### 5.4 웹 관리 대시보드 (`GET /`)
+
+브라우저로 `http://<host>:<port>/` 에 접속하면 **id/pw 로그인** 후 사용하는 관리 화면이 뜬다.
+
+- **로그인**: `ADMIN_USER` / `ADMIN_PASSWORD`(환경변수)로 인증. 성공 시 서명된 세션 쿠키(HttpOnly)가 발급된다.
+- **총 요청 수**: 들어온 API 요청을 로컬 SQLite(`DATA_DIR/app.db`)에 기록해 집계한다 — 총 요청 수 / `/chat` 요청 수 / 최근 24시간. (헬스체크·관리 페이지·Swagger 요청은 집계 제외)
+- **클라이언트별 요청 수**: 토큰 발급 시 넘긴 `client_id`(JWT 의 `sub`) 기준으로 클라이언트별 총 요청·`/chat` 요청·마지막 요청 시각을 보여준다. `client_id` 미지정 요청은 `default` 로 집계된다.
+- **API 키 노출**: 현재 구조는 서버 전체 단일 마스터 키(`API_KEY`) 1개이며, 그 값을 화면에 노출한다. 클라이언트는 이 키로 `POST /auth/token` 을 호출하면서 원하는 `client_id` 를 지정해 토큰을 받는다(클라이언트별 키 발급/폐기는 없음).
+- **JWT_SECRET 변경**: 폼에서 새 비밀(16자+)을 입력하면 DB `settings` 테이블에 저장되어 `.env` 의 `JWT_SECRET` 을 **즉시 덮어쓴다**(재기동 불필요). 변경 시 기존에 발급된 모든 JWT 와 관리 세션이 무효화되므로 재로그인이 필요하다.
+
+| 경로 | 메서드 | 설명 |
+|---|---|---|
+| `/` | GET | 대시보드(미로그인 시 `/admin/login` 으로 이동) |
+| `/admin/login` | GET/POST | 로그인 폼 / 자격 검증 |
+| `/admin/logout` | POST | 로그아웃 |
+| `/admin/jwt-secret` | POST | JWT_SECRET 변경 |
+
+> 집계 DB와 변경된 JWT_SECRET 은 `ysclaude-data` 볼륨(`/app/data`)에 저장되어 재배포에도 유지된다.
+
 ---
 
 ## 6. End-to-end 예제
@@ -270,6 +293,8 @@ yclaude/
     ├── config.py             # pydantic-settings 기반 Settings
     ├── auth.py               # JWT 발급/검증, HTTPBearer 의존성
     ├── claude_client.py      # Claude CLI subprocess 호출 래퍼
+    ├── db.py                 # 로컬 SQLite (요청 수 집계 + JWT_SECRET 오버라이드)
+    ├── admin.py              # 관리 대시보드(로그인/통계/JWT_SECRET 변경)
     └── main.py               # FastAPI app, 엔드포인트 정의
 ```
 
@@ -278,6 +303,8 @@ yclaude/
 - 새 엔드포인트 추가 → `server/main.py`
 - Claude CLI 인자/파싱 변경 → `server/claude_client.py:ask_claude`
 - 인증 정책 변경 → `server/auth.py`
+- 요청 집계 / DB 스키마 → `server/db.py`
+- 대시보드 화면·로직 → `server/admin.py`
 - 설정 항목 추가 → `server/config.py` + `.env.example`
 
 ---
@@ -285,8 +312,9 @@ yclaude/
 ## 9. 운영 / 보안 체크리스트
 
 - [ ] `API_KEY`, `JWT_SECRET`을 기본값(`change-me`, `replace-with-...`)에서 충분히 긴 랜덤값으로 교체
+- [ ] `ADMIN_PASSWORD`를 설정(비어 있으면 대시보드 로그인 자체가 막힘). 운영에선 Jenkins Credentials(`ysclaude-admin`)로 주입 권장
 - [ ] `.env`를 git에 커밋하지 않을 것 (`.gitignore` 확인)
-- [ ] 외부 노출 시 HTTPS 리버스 프록시(nginx, Caddy 등) 뒤에 두기
+- [ ] 대시보드는 HTTP 세션 쿠키를 쓰므로(평문 HTTP에선 secure 미설정) 외부 노출 시 HTTPS 리버스 프록시(nginx, Caddy 등) 뒤에 두기
 - [ ] `CLAUDE_TIMEOUT`을 호출 패턴에 맞게 조정 (긴 답변이 잘리지 않도록)
 - [ ] Claude CLI가 실행되는 사용자 컨텍스트로 사전 로그인되어 있는지 확인 (`claude` 명령 1회 수동 실행)
 - [ ] 동시 요청이 많아질 경우, Claude CLI를 `subprocess`로 매번 띄우는 비용 고려 (현재 구조는 요청당 새 프로세스)

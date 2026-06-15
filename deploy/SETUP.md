@@ -125,6 +125,10 @@ JWT_EXPIRE_MINUTES=60
 DEFAULT_MODEL=opus
 CLAUDE_CLI_PATH=claude
 CLAUDE_TIMEOUT=300
+ADMIN_USER=admin
+ADMIN_PASSWORD=$(openssl rand -hex 16)
+ADMIN_SESSION_MINUTES=480
+DATA_DIR=/app/data
 HOST=0.0.0.0
 PORT=9091
 EOF
@@ -135,6 +139,36 @@ grep '^API_KEY=' /home/dodsas/work/ysclaude/.env
 ```
 
 > 이 `.env`는 git에 커밋되지 않습니다. 호스트에서만 관리.
+>
+> **`ADMIN_USER` / `ADMIN_PASSWORD`** 는 관리 대시보드(`http://<host>:9091/`) 로그인 자격입니다.
+> 여기서는 부트스트랩용으로 적어두지만, **운영에서는 5-A단계처럼 Jenkins Credentials 로 주입**하면
+> 매 배포 시 `deploy.sh` 가 이 두 값을 `.env` 에 자동 덮어씁니다(Jenkins 가 단일 진실원천).
+> Jenkins 로 주입하지 않을 거라면 위 `.env` 값이 그대로 유지됩니다.
+> `DATA_DIR=/app/data` 는 요청 수 집계 SQLite(`app.db`)가 저장되는 볼륨 경로입니다(영구 보존).
+
+---
+
+## ☐ 5-A단계 — 관리 대시보드 자격증명 등록 (Jenkins Credentials)
+
+관리 대시보드(`http://<host>:9091/`) 로그인 id/pw 를 **Jenkins Credentials 로 주입**합니다.
+이렇게 하면 자격이 git/`.env` 평문에 남지 않고, 매 배포 시 `deploy.sh` 가 `.env` 에 자동 반영합니다.
+
+**Manage Jenkins → Credentials → System → Global → Add Credentials**
+
+| 항목 | 값 |
+|---|---|
+| Kind | **Username with password** |
+| Scope | Global |
+| Username | 원하는 관리자 아이디 (예: `admin`) |
+| Password | 강한 비밀번호 (예: `openssl rand -hex 16` 결과) |
+| ID | **`ysclaude-admin`** ← Jenkinsfile 의 `ADMIN_CRED` 값과 반드시 일치 |
+| Description | `ysclaude 관리 대시보드 로그인` |
+
+> Jenkinsfile 의 Deploy stage 가 이 credential 을 `ADMIN_USER` / `ADMIN_PASSWORD` 로 바인딩해
+> 원격 `deploy.sh` 로 전달하고, `deploy.sh` 가 `.env` 에 upsert 합니다. 콘솔 로그에서 비밀번호는 마스킹됩니다.
+>
+> id/pw 를 바꾸려면 이 credential 만 수정 후 재배포하면 됩니다. (또는 호스트 `.env` 직접 수정)
+> credential 을 만들지 않고 Jenkins 배포를 돌리면 바인딩 단계에서 실패하므로, **반드시 먼저 등록**하세요.
 
 ---
 
@@ -287,6 +321,16 @@ curl -s -X POST http://127.0.0.1:9091/chat \
 http://<podman-host>:9091/docs
 ```
 Swagger UI 표시 확인.
+
+**관리 대시보드**:
+```
+http://<podman-host>:9091/
+```
+- 로그인 화면이 뜨고, 5-A단계(또는 `.env`)의 `ADMIN_USER`/`ADMIN_PASSWORD` 로 로그인됩니다.
+- 로그인 후 **총 요청 수 / /chat 요청 / 최근 24시간** 카드와 **JWT_SECRET 변경** 폼이 보입니다.
+- 위 `/chat` 호출을 한 번 한 뒤 새로고침하면 카운트가 증가합니다.
+- JWT_SECRET 을 변경하면 즉시 DB(`/app/data/app.db`)에 저장되어 `.env` 값을 덮어쓰고,
+  기존 발급 토큰·관리 세션은 무효화됩니다(재로그인 필요).
 
 ---
 

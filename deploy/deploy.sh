@@ -56,6 +56,30 @@ else
 fi
 chmod 600 "$APP_DIR/.env" 2>/dev/null || true
 
+# 관리자 대시보드 자격증명(.env upsert).
+# Jenkins 가 ADMIN_USER / ADMIN_PASSWORD 를 환경변수로 넘기면 매 배포 시 .env 에 반영한다.
+# (Jenkins 를 단일 진실원천으로 두기 위함. 값이 없으면 기존 .env 값을 그대로 둔다.)
+upsert_env() {
+  local key="$1" value="$2" file="$APP_DIR/.env"
+  if grep -q "^${key}=" "$file" 2>/dev/null; then
+    # 구분자로 | 사용(값에 / 등이 포함돼도 안전), 값은 sed 특수문자 이스케이프
+    local esc
+    esc=$(printf '%s' "$value" | sed -e 's/[&|\\]/\\&/g')
+    sed -i "s|^${key}=.*|${key}=${esc}|" "$file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
+}
+
+if [ -n "${ADMIN_USER:-}" ]; then
+  upsert_env "ADMIN_USER" "$ADMIN_USER"
+  log "ADMIN_USER 를 .env 에 반영"
+fi
+if [ -n "${ADMIN_PASSWORD:-}" ]; then
+  upsert_env "ADMIN_PASSWORD" "$ADMIN_PASSWORD"
+  log "ADMIN_PASSWORD 를 .env 에 반영 (값은 로그에 출력하지 않음)"
+fi
+
 if ! command -v podman-compose >/dev/null 2>&1; then
   log "podman-compose 명령을 찾을 수 없습니다."
   log "설치: sudo dnf install -y podman-compose  (또는 pip install --user podman-compose)"

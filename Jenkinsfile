@@ -17,6 +17,8 @@ pipeline {
   environment {
     APP_NAME = 'ysclaude'
     SSH_CRED = 'ysadmin-deploy-ssh'
+    // 관리자 대시보드 로그인 자격증명 (Jenkins Credentials: Username with password)
+    ADMIN_CRED = 'ysclaude-admin'
     SSH_PORT = '22311'
     // HOST_PORT 는 운영 표준값으로 코드에 고정. Jenkins 파라미터 캐시 문제 회피.
     // 임시로 다른 포트로 띄울 일이 생기면 이 값만 바꾸고 커밋하거나, deploy.sh 를
@@ -84,7 +86,10 @@ pipeline {
 
         stage('Deploy') {
           steps {
-            withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CRED, keyFileVariable: 'SSH_KEY')]) {
+            withCredentials([
+              sshUserPrivateKey(credentialsId: env.SSH_CRED, keyFileVariable: 'SSH_KEY'),
+              usernamePassword(credentialsId: env.ADMIN_CRED, usernameVariable: 'ADMIN_USER', passwordVariable: 'ADMIN_PASSWORD')
+            ]) {
               sh '''
                 set -e
                 SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null"
@@ -93,6 +98,8 @@ pipeline {
                   export APP_DIR=${REMOTE_DIR}
                   export HOST_PORT=${HOST_PORT}
                   export IMAGE_TAG=${IMAGE_TAG}
+                  export ADMIN_USER='${ADMIN_USER}'
+                  export ADMIN_PASSWORD='${ADMIN_PASSWORD}'
                   bash ${REMOTE_DIR}/deploy/deploy.sh
                 "
               '''

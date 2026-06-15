@@ -1,9 +1,20 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+import db
+from admin import router as admin_router
 from auth import create_access_token, verify_token
 from claude_client import ClaudeCliError, ask_claude
 from config import settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    yield
+
 
 app = FastAPI(
     title="yclaude",
@@ -12,7 +23,28 @@ app = FastAPI(
         "requests to the locally installed Claude CLI."
     ),
     version="0.1.0",
+    lifespan=lifespan,
 )
+
+# 총 요청 수 집계용 미들웨어. 헬스체크/관리 페이지/정적 요청은 제외.
+_UNCOUNTED_PREFIXES = ("/health", "/admin", "/docs", "/openapi", "/redoc", "/favicon")
+
+
+@app.middleware("http")
+async def count_requests(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path != "/" and not path.startswith(_UNCOUNTED_PREFIXES):
+        # 라우트/의존성이 request.state.client 에 남긴 클라이언트(토큰 sub) 사용
+        client = getattr(request.state, "client", None)
+        try:
+            db.log_request(path, request.method, response.status_code, client)
+        except Exception:
+            pass  # 집계 실패가 본 요청을 막지 않도록
+    return response
+
+
+app.include_router(admin_router)
 
 
 class TokenRequest(BaseModel):
@@ -59,13 +91,15 @@ async def health() -> dict[str, str]:
 
 
 @app.post("/auth/token", response_model=TokenResponse, tags=["auth"])
-async def issue_token(req: TokenRequest) -> TokenResponse:
+async def issue_token(req: TokenRequest, request: Request) -> TokenResponse:
     if req.api_key != settings.api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
         )
 
     subject = req.client_id or "default"
+    # 토큰 발급 요청도 클라이언트별 집계에 포함되도록 주체를 남긴다.
+    request.state.client = subject
     token, expires_in = create_access_token(subject)
     return TokenResponse(access_token=token, expires_in=expires_in)
 

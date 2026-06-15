@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     claude_cli_path: str = "claude"
     claude_timeout: int = 300
 
+    # 관리자 대시보드 로그인 (Jenkins 환경변수로 주입)
+    admin_user: str = "admin"
+    admin_password: str = ""
+    admin_session_minutes: int = 480
+
+    # 로컬 SQLite DB 가 저장될 디렉터리 (컨테이너에서는 /app/data 볼륨)
+    data_dir: str = "data"
+
     host: str = "0.0.0.0"
     port: int = 8000
 
